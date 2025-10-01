@@ -1,0 +1,11 @@
+.idea
+node_modules
+*todo.md
+.DS_Store
+dist
+.env
+.env.local
+.env.*.local
+coverage
+*.log
+pnpm-debug.log*
