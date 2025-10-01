@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { TabInfo, NotionConfig, SaveStatus } from '../types'
-import { getNotionConfig } from '../utils/storage'
+import { getNotionConfig, saveNotionConfig } from '../utils/storage'
 import { saveMultipleTabs } from '../utils/notion'
 
 function App() {
@@ -8,10 +8,19 @@ function App() {
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [message, setMessage] = useState<string>('')
   const [config, setConfig] = useState<NotionConfig | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const [tokenInput, setTokenInput] = useState('')
+  const [databaseIdInput, setDatabaseIdInput] = useState('')
 
   useEffect(() => {
     // 設定を読み込む
-    getNotionConfig().then(setConfig)
+    getNotionConfig().then((savedConfig) => {
+      if (savedConfig) {
+        setConfig(savedConfig)
+        setTokenInput(savedConfig.token)
+        setDatabaseIdInput(savedConfig.databaseId)
+      }
+    })
 
     // 現在のタブを取得
     chrome.tabs.query({ currentWindow: true }, (chromeTabs) => {
@@ -60,6 +69,29 @@ function App() {
     }, 3000)
   }
 
+  const handleSaveSettings = async () => {
+    if (!tokenInput.trim() || !databaseIdInput.trim()) {
+      return
+    }
+
+    const newConfig: NotionConfig = {
+      token: tokenInput.trim(),
+      databaseId: databaseIdInput.trim(),
+    }
+
+    await saveNotionConfig(newConfig)
+    setConfig(newConfig)
+    setShowSettings(false)
+  }
+
+  const handleOpenSettings = () => {
+    setShowSettings(true)
+  }
+
+  const handleCloseSettings = () => {
+    setShowSettings(false)
+  }
+
   return (
     <div className="app">
       <header>
@@ -85,8 +117,49 @@ function App() {
       </div>
 
       <footer>
-        <button className="settings-button">⚙️ 設定</button>
+        <button className="settings-button" onClick={handleOpenSettings}>
+          ⚙️ 設定
+        </button>
       </footer>
+
+      {showSettings && (
+        <div className="modal-overlay" onClick={handleCloseSettings}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Notion設定</h2>
+            <div className="form-group">
+              <label htmlFor="token">Integration Token</label>
+              <input
+                id="token"
+                type="password"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="secret_xxxxx..."
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="databaseId">Database ID</label>
+              <input
+                id="databaseId"
+                type="text"
+                value={databaseIdInput}
+                onChange={(e) => setDatabaseIdInput(e.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              />
+            </div>
+            <div className="modal-buttons">
+              <button
+                className="button-secondary"
+                onClick={handleCloseSettings}
+              >
+                キャンセル
+              </button>
+              <button className="button-primary" onClick={handleSaveSettings}>
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
