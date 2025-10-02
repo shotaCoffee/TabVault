@@ -1,75 +1,85 @@
-# React + TypeScript + Vite
+# TabVault
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Chrome拡張機能で、開いているタブをNotionデータベースに保存できます。
 
-Currently, two official plugins are available:
+## 機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 現在開いている全てのタブをNotionに一括保存
+- タブのタイトル、URL、保存日時を記録
+- シンプルで使いやすいUI
 
-## React Compiler
+## セットアップ
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+### 1. Notion Integration の作成
 
-Note: This will impact Vite dev & build performances.
+1. [Notion Integrations](https://www.notion.so/my-integrations) にアクセス
+2. 「+ New integration」をクリック
+3. 名前を入力（例: TabVault）
+4. ワークスペースを選択
+5. 「Submit」をクリック
+6. **Internal Integration Secret** をコピー（`secret_` で始まる文字列）
 
-## Expanding the ESLint configuration
+### 2. Notionデータベースの作成
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Notionで新しいページを作成
+2. データベース（テーブル）を追加
+3. 以下のプロパティを作成:
+   - `Title` (タイトル型) - デフォルトで存在
+   - `URL` (URL型) - 手動で追加
+   - `Saved Date` (日付型) - 手動で追加
+4. データベースのIDをコピー
+   - URLから取得: `https://notion.so/workspace/DATABASE_ID?v=...`
+   - `DATABASE_ID` の部分（32文字のハイフン区切り文字列）
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 3. Integrationをデータベースに接続
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. データベースページを開く
+2. 右上の「...」メニューをクリック
+3. 「接続」→「追加」
+4. 作成したIntegration（TabVault）を選択
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 4. 拡張機能の設定
+
+1. 拡張機能のアイコンをクリック
+2. 「⚙️ 設定」ボタンをクリック
+3. Integration Token と Database ID を入力
+4. 「保存」をクリック
+
+## 使い方
+
+1. ブラウザでタブを開く
+2. 拡張機能のアイコンをクリック
+3. 「💾 全て保存する」ボタンをクリック
+4. Notionデータベースにタブが保存されます
+
+## 開発
+
+```bash
+# 依存関係のインストール
+pnpm install
+
+# 開発サーバー起動
+pnpm run dev
+
+# ビルド
+pnpm run build
+
+# テスト実行
+pnpm run test
+
+# リント & フォーマット
+pnpm run lint
+pnpm run format
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 技術スタック
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- React 19 + TypeScript
+- Vite
+- Chrome Extension Manifest V3
+- Notion API
+- Vitest + Testing Library
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## ライセンス
+
+MIT

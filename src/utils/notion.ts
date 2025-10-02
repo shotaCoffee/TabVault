@@ -1,4 +1,3 @@
-import { Client } from '@notionhq/client'
 import type { TabInfo } from '../types'
 
 interface SaveTabParams {
@@ -12,23 +11,34 @@ export async function saveTabToNotion({
   token,
   databaseId,
 }: SaveTabParams): Promise<void> {
-  const notion = new Client({ auth: token })
-
   try {
-    await notion.pages.create({
-      parent: { database_id: databaseId },
-      properties: {
-        Title: {
-          title: [{ text: { content: tab.title } }],
-        },
-        URL: {
-          url: tab.url,
-        },
-        'Saved Date': {
-          date: { start: new Date().toISOString() },
-        },
+    const response = await fetch('https://api.notion.com/v1/pages', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
       },
+      body: JSON.stringify({
+        parent: { database_id: databaseId },
+        properties: {
+          Title: {
+            title: [{ text: { content: tab.title } }],
+          },
+          URL: {
+            url: tab.url,
+          },
+          'Saved Date': {
+            date: { start: new Date().toISOString() },
+          },
+        },
+      }),
     })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'API Error')
+    }
   } catch (error) {
     console.error('Failed to save tab to Notion:', error)
     throw new Error('Notionへの保存に失敗しました')

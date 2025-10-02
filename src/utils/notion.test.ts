@@ -2,18 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { saveTabToNotion, saveMultipleTabs } from './notion'
 import type { TabInfo } from '../types'
 
-// Mock @notionhq/client
-vi.mock('@notionhq/client', () => {
-  const mockCreate = vi.fn()
-  return {
-    Client: vi.fn(() => ({
-      pages: {
-        create: mockCreate,
-      },
-    })),
-    mockCreate,
-  }
-})
+// Mock global fetch
+global.fetch = vi.fn()
 
 describe('notion utilities', () => {
   beforeEach(() => {
@@ -22,13 +12,11 @@ describe('notion utilities', () => {
 
   describe('saveTabToNotion', () => {
     it('should save a single tab to Notion', async () => {
-      const { Client } = await import('@notionhq/client')
-      const mockCreate = vi.fn().mockResolvedValue({ id: 'page-id' })
-      ;(Client as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        () => ({
-          pages: { create: mockCreate },
-        })
-      )
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'page-id' }),
+      })
+      global.fetch = mockFetch
 
       const tab: TabInfo = {
         id: 1,
@@ -43,30 +31,25 @@ describe('notion utilities', () => {
         databaseId: 'test-db-id',
       })
 
-      expect(mockCreate).toHaveBeenCalledWith({
-        parent: { database_id: 'test-db-id' },
-        properties: {
-          Title: {
-            title: [{ text: { content: 'Test Page' } }],
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.notion.com/v1/pages',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer test-token',
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28',
           },
-          URL: {
-            url: 'https://example.com',
-          },
-          'Saved Date': {
-            date: { start: expect.any(String) },
-          },
-        },
-      })
+        })
+      )
     })
 
     it('should throw error when save fails', async () => {
-      const { Client } = await import('@notionhq/client')
-      const mockCreate = vi.fn().mockRejectedValue(new Error('API Error'))
-      ;(Client as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        () => ({
-          pages: { create: mockCreate },
-        })
-      )
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ message: 'API Error' }),
+      })
+      global.fetch = mockFetch
 
       const tab: TabInfo = {
         title: 'Test Page',
@@ -85,13 +68,11 @@ describe('notion utilities', () => {
 
   describe('saveMultipleTabs', () => {
     it('should save multiple tabs and return success count', async () => {
-      const { Client } = await import('@notionhq/client')
-      const mockCreate = vi.fn().mockResolvedValue({ id: 'page-id' })
-      ;(Client as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        () => ({
-          pages: { create: mockCreate },
-        })
-      )
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'page-id' }),
+      })
+      global.fetch = mockFetch
 
       const tabs: TabInfo[] = [
         { title: 'Page 1', url: 'https://example1.com' },
@@ -106,21 +87,25 @@ describe('notion utilities', () => {
       })
 
       expect(result).toEqual({ success: 3, failed: 0 })
-      expect(mockCreate).toHaveBeenCalledTimes(3)
+      expect(mockFetch).toHaveBeenCalledTimes(3)
     })
 
     it('should handle partial failures', async () => {
-      const { Client } = await import('@notionhq/client')
-      const mockCreate = vi
+      const mockFetch = vi
         .fn()
-        .mockResolvedValueOnce({ id: 'page-1' })
-        .mockRejectedValueOnce(new Error('Failed'))
-        .mockResolvedValueOnce({ id: 'page-3' })
-      ;(Client as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        () => ({
-          pages: { create: mockCreate },
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ id: 'page-1' }),
         })
-      )
+        .mockResolvedValueOnce({
+          ok: false,
+          json: async () => ({ message: 'Failed' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ id: 'page-3' }),
+        })
+      global.fetch = mockFetch
 
       const tabs: TabInfo[] = [
         { title: 'Page 1', url: 'https://example1.com' },
@@ -138,13 +123,11 @@ describe('notion utilities', () => {
     })
 
     it('should process tabs in chunks of 5', async () => {
-      const { Client } = await import('@notionhq/client')
-      const mockCreate = vi.fn().mockResolvedValue({ id: 'page-id' })
-      ;(Client as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        () => ({
-          pages: { create: mockCreate },
-        })
-      )
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'page-id' }),
+      })
+      global.fetch = mockFetch
 
       const tabs: TabInfo[] = Array.from({ length: 12 }, (_, i) => ({
         title: `Page ${i + 1}`,
@@ -158,7 +141,7 @@ describe('notion utilities', () => {
       })
 
       expect(result).toEqual({ success: 12, failed: 0 })
-      expect(mockCreate).toHaveBeenCalledTimes(12)
+      expect(mockFetch).toHaveBeenCalledTimes(12)
     })
   })
 })

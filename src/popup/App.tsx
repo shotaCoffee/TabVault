@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { TabInfo, NotionConfig, SaveStatus } from '../types'
 import { getNotionConfig, saveNotionConfig } from '../utils/storage'
-import { saveMultipleTabs } from '../utils/notion'
 
 function App() {
   const [tabs, setTabs] = useState<TabInfo[]>([])
@@ -44,17 +43,25 @@ function App() {
     setMessage('保存中...')
 
     try {
-      const result = await saveMultipleTabs({
-        tabs,
-        token: config.token,
-        databaseId: config.databaseId,
+      const response = await chrome.runtime.sendMessage({
+        type: 'SAVE_TABS',
+        payload: {
+          tabs,
+          token: config.token,
+          databaseId: config.databaseId,
+        },
       })
 
-      setStatus('success')
-      setMessage(`✅ ${result.success}個のタブを保存しました`)
+      if (response.success) {
+        const result = response.result
+        setStatus('success')
+        setMessage(`✅ ${result.success}個のタブを保存しました`)
 
-      if (result.failed > 0) {
-        setMessage((prev) => prev + ` (${result.failed}個失敗)`)
+        if (result.failed > 0) {
+          setMessage((prev) => prev + ` (${result.failed}個失敗)`)
+        }
+      } else {
+        throw new Error(response.error)
       }
     } catch (error) {
       setStatus('error')

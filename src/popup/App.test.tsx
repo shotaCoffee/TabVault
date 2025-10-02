@@ -44,12 +44,12 @@ global.chrome = {
       ])
     }),
   },
+  runtime: {
+    sendMessage: vi.fn(() =>
+      Promise.resolve({ success: true, result: { success: 2, failed: 0 } })
+    ),
+  },
 } as unknown as typeof chrome
-
-// Mock notion utilities
-vi.mock('../utils/notion', () => ({
-  saveMultipleTabs: vi.fn(() => Promise.resolve({ success: 2, failed: 0 })),
-}))
 
 describe('App', () => {
   beforeEach(() => {
