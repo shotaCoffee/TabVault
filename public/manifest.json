@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Save your browser tabs to Notion with one click",
   "permissions": ["tabs", "storage", "activeTab"],
+  "host_permissions": ["https://api.notion.com/*"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_icon": {
