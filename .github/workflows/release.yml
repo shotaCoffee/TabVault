@@ -1,0 +1,149 @@
+name: Release Chrome Extension
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/release.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm run test:run
+
+      - name: Run linter
+        run: pnpm run lint
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build extension
+        run: pnpm run build
+
+      - name: Get version from package.json
+        id: package-version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Get version from manifest.json
+        id: manifest-version
+        run: echo "version=$(node -p "require('./public/manifest.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check if release exists
+        id: check-release
+        run: |
+          if gh release view "v${{ steps.manifest-version.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create dist archive
+        if: steps.check-release.outputs.exists == 'false'
+        run: |
+          cd dist
+          zip -r ../tabvault-v${{ steps.manifest-version.outputs.version }}.zip .
+          cd ..
+
+      - name: Generate release notes
+        if: steps.check-release.outputs.exists == 'false'
+        id: release-notes
+        run: |
+          cat > release-notes.md << 'EOF'
+          ## TabVault v${{ steps.manifest-version.outputs.version }}
+
+          ブラウザのタブを整理してNotionに保存できるChrome拡張機能です。
+
+          ### インストール方法
+
+          1. `tabvault-v${{ steps.manifest-version.outputs.version }}.zip` をダウンロード
+          2. ZIPファイルを展開
+          3. Chromeで `chrome://extensions/` を開く
+          4. 右上の「デベロッパーモード」をON
+          5. 「パッケージ化されていない拡張機能を読み込む」をクリック
+          6. 展開したフォルダを選択
+
+          詳しい使い方は [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) をご覧ください。
+
+          ### 主な機能
+
+          - 📑 タブ管理: 現在のタブや全タブをNotionに保存
+          - 💾 自動保存: タブのタイトルとURLを自動記録
+          - 📅 タイムスタンプ: 保存日時を自動追加
+          - ⚙️ 設定管理: Notion統合トークンとデータベースIDを安全に保存
+
+          ### 変更内容
+
+          EOF
+
+          # Get commit messages since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            git log --pretty=format:"- %s" >> release-notes.md
+          else
+            git log ${LAST_TAG}..HEAD --pretty=format:"- %s" >> release-notes.md
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check-release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.manifest-version.outputs.version }}
+          name: TabVault v${{ steps.manifest-version.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          files: |
+            tabvault-v${{ steps.manifest-version.outputs.version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release already exists
+        if: steps.check-release.outputs.exists == 'true'
+        run: |
+          echo "::notice::Release v${{ steps.manifest-version.outputs.version }} already exists. Skipping release creation."

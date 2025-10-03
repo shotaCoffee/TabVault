@@ -10,3 +10,6 @@ coverage
 *.log
 pnpm-debug.log*
 CLAUDE.md
+dist.crx
+dist.pem
+dist.zip
